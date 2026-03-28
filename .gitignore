@@ -1,0 +1,26 @@
+# Dependencies - مجلدات المكتبات، ما نرفعها لأنها ضخمة
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Environment variables - ملفات البيانات الحساسة
+.env
+.env.local
+server/.env
+client/.env
+
+# Build output - ملفات الـ build النهائية
+client/dist/
+client/build/
+
+# Logs - ملفات السجلات
+logs/
+*.log
+npm-debug.log*
+
+# OS files - ملفات النظام
+.DS_Store
+Thumbs.db
+
+# IDE - إعدادات VS Code الشخصية
+.vscode/settings.json
