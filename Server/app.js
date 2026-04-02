@@ -3,45 +3,53 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
-// أنشئ تطبيق Express
+// ── استيراد الـ Routes ────────────────────────────────
+// كل سطر هنا يقول "اجلب الـ routes من هذا الملف"
+const authRoutes        = require('./routes/authRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
+const serviceRoutes     = require('./routes/serviceRoutes');
+
 const app = express();
 
-// ── Middleware ──────────────────────────────────────
-
-// Helmet: يضيف HTTP headers أمنية تحمي من هجمات شائعة
+// ── Middleware ────────────────────────────────────────
 app.use(helmet());
 
-// CORS: يسمح للـ frontend (على port 5173) يتكلم مع الـ backend (على port 5000)
-// بدون هذا، المتصفح يرفض الـ requests تلقائياً
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
 }));
 
-// Body Parser: يحوّل الـ JSON القادم في الـ request إلى JavaScript object
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Morgan: يطبع في الـ terminal كل request مع status code والوقت
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
-// ── Routes ──────────────────────────────────────────
-
-// Health Check: تفتحه في المتصفح للتأكد أن السيرفر شغّال
+// ── Routes ────────────────────────────────────────────
+// الـ health check - للتأكد أن السيرفر شغّال
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// ── Error Handlers ───────────────────────────────────
+// ربط الـ routes:
+// أي request يبدأ بـ /api/auth    → يروح لـ authRoutes
+// أي request يبدأ بـ /api/appointments → يروح لـ appointmentRoutes
+// أي request يبدأ بـ /api/services    → يروح لـ serviceRoutes
+app.use('/api/auth', authRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/services', serviceRoutes);
 
-// 404: لو طلب وصل لـ route غير موجود
+// ── Error Handlers ────────────────────────────────────
+// 404: لو ما لقى أي route تطابق الـ request
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+  });
 });
 
-// Global Error Handler: يمسك أي خطأ في أي مكان في التطبيق
+// Global error handler: يمسك أي خطأ في التطبيق
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.statusCode || 500).json({
