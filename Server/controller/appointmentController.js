@@ -1,13 +1,14 @@
 const Appointment = require('../models/Appointment');
+const {
+  sendBookingConfirmation,
+  sendCancellationNotice,
+} = require('../services/emailService');
 
 // ── @route   GET /api/appointments ────────────────────
 exports.getAppointments = async (req, res) => {
   try {
     let query;
 
-    // الـ admin يشوف كل المواعيد
-    // الـ customer يشوف مواعيده فقط
-    // الـ staff يشوف مواعيده فقط
     if (req.user.role === 'admin') {
       query = Appointment.find();
     } else if (req.user.role === 'staff') {
@@ -69,8 +70,18 @@ exports.createAppointment = async (req, res) => {
     });
 
     res.status(201).json({ success: true, data: appointment });
+
+    // أرسل confirmation email بعد الـ response مباشرة
+    try {
+      const populated = await Appointment.findById(appointment._id)
+        .populate('customer', 'name email')
+        .populate('staff', 'name')
+        .populate('service', 'name price');
+      await sendBookingConfirmation(populated);
+    } catch (emailErr) {
+      console.error('Confirmation email failed:', emailErr.message);
+    }
   } catch (err) {
-    // لو في تعارض في المواعيد
     if (err.statusCode === 400) {
       return res.status(400).json({ success: false, message: err.message });
     }
@@ -90,7 +101,6 @@ exports.updateAppointment = async (req, res) => {
       });
     }
 
-    // فقط الـ admin أو صاحب الموعد يقدر يعدّل
     if (
       req.user.role !== 'admin' &&
       appointment.customer.toString() !== req.user.id
@@ -125,7 +135,6 @@ exports.deleteAppointment = async (req, res) => {
       });
     }
 
-    // فقط الـ admin يقدر يحذف
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -167,6 +176,19 @@ exports.updateStatus = async (req, res) => {
     }
 
     res.status(200).json({ success: true, data: appointment });
+
+    // لو الـ status تغيّر لـ cancelled، أرسل إشعار إلغاء
+    if (status === 'cancelled') {
+      try {
+        const populated = await Appointment.findById(req.params.id)
+          .populate('customer', 'name email')
+          .populate('staff', 'name')
+          .populate('service', 'name price');
+        await sendCancellationNotice(populated);
+      } catch (emailErr) {
+        console.error('Cancellation email failed:', emailErr.message);
+      }
+    }
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
