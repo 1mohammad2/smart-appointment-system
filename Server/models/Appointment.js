@@ -24,7 +24,6 @@ const AppointmentSchema = new mongoose.Schema(
     startTime: {
       type: String,
       required: [true, 'Start time is required'],
-      // format: "HH:MM" مثلاً "09:30"
     },
     endTime: {
       type: String,
@@ -49,34 +48,36 @@ const AppointmentSchema = new mongoose.Schema(
   }
 );
 
-// ── Index ──────────────────────────────────────────────
-// يسرّع البحث عن المواعيد بالتاريخ والـ staff
 AppointmentSchema.index({ date: 1, staff: 1 });
 
-// ── Smart Scheduling ───────────────────────────────────
-// قبل الحفظ: تحقق أن ما في موعد آخر بنفس الوقت لنفس الـ staff
+// التحقق من تعارض المواعيد
 AppointmentSchema.pre('save', async function (next) {
-  if (!this.isModified('date') && !this.isModified('startTime')) {
+  try {
+    if (!this.isModified('date') && !this.isModified('startTime')) {
+      return next();
+    }
+
+    const conflict = await mongoose.model('Appointment').findOne({
+      staff: this.staff,
+      date: this.date,
+      status: { $nin: ['cancelled'] },
+      _id: { $ne: this._id },
+      startTime: { $lt: this.endTime },
+      endTime: { $gt: this.startTime },
+    });
+
+    if (conflict) {
+      const err = new Error(
+        'This time slot is already booked for this staff member'
+      );
+      err.statusCode = 400;
+      return next(err);
+    }
+
     return next();
+  } catch (err) {
+    return next(err);
   }
-
-  const conflict = await this.constructor.findOne({
-    staff: this.staff,
-    date: this.date,
-    status: { $nin: ['cancelled'] },
-    _id: { $ne: this._id },
-    $or: [
-      { startTime: { $lt: this.endTime }, endTime: { $gt: this.startTime } },
-    ],
-  });
-
-  if (conflict) {
-    const error = new Error('This time slot is already booked for this staff member');
-    error.statusCode = 400;
-    return next(error);
-  }
-
-  next();
 });
 
 module.exports = mongoose.model('Appointment', AppointmentSchema);

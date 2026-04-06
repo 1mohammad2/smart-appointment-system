@@ -50,6 +50,7 @@ exports.register = async (req, res) => {
 
     sendTokenResponse(user, 201, res);
   } catch (err) {
+    console.error('Error during registration:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
