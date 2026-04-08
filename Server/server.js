@@ -19,9 +19,9 @@ mongoose
     // ثم شغّله كل 24 ساعة تلقائياً
     setInterval(runReminderJob, 24 * 60 * 60 * 1000);
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0' ,() => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`📋 Health check: /api/health`);
     });
   })
   .catch((err) => {
