@@ -10,6 +10,8 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 const serviceRoutes     = require('./routes/serviceRoutes');
 
 const app = express();
+// مهم لـ Railway — يثق في الـ proxy
+app.set('trust proxy', 1);
 
 // ── Middleware ────────────────────────────────────────
 app.use(helmet());
