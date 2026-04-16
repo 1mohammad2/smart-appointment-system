@@ -9,13 +9,13 @@ const {
   updateStatus,
 } = require('../controllers/appointmentController');
 const { protect, authorize } = require('../middleware/auth');
+const { validateAppointment } = require('../middleware/validate');
 
-// كل الـ routes تحتاج login
 router.use(protect);
 
 router.route('/')
   .get(getAppointments)
-  .post(createAppointment);
+  .post(validateAppointment, createAppointment);
 
 router.route('/:id')
   .get(getAppointment)

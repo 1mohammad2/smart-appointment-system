@@ -2,18 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { generalLimiter } = require('./middleware/rateLimiter');
 
-// ── استيراد الـ Routes ────────────────────────────────
-// كل سطر هنا يقول "اجلب الـ routes من هذا الملف"
-const authRoutes        = require('./routes/authRoutes');
+const authRoutes = require('./routes/authRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
-const serviceRoutes     = require('./routes/serviceRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
 
 const app = express();
-// مهم لـ Railway — يثق في الـ proxy
-app.set('trust proxy', 1);
 
-// ── Middleware ────────────────────────────────────────
+// ── Security Middleware ───────────────────────────────
 app.use(helmet());
 
 app.use(cors({
@@ -21,29 +18,28 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+// ── General Rate Limiter ──────────────────────────────
+app.use('/api/', generalLimiter);
+
+// ── Body Parser ───────────────────────────────────────
+app.use(express.json({ limit: '10kb' })); // حد حجم الـ request body
 app.use(express.urlencoded({ extended: false }));
 
+// ── Logger ────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
 // ── Routes ────────────────────────────────────────────
-// الـ health check - للتأكد أن السيرفر شغّال
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// ربط الـ routes:
-// أي request يبدأ بـ /api/auth    → يروح لـ authRoutes
-// أي request يبدأ بـ /api/appointments → يروح لـ appointmentRoutes
-// أي request يبدأ بـ /api/services    → يروح لـ serviceRoutes
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/services', serviceRoutes);
 
-// ── Error Handlers ────────────────────────────────────
-// 404: لو ما لقى أي route تطابق الـ request
+// ── 404 Handler ───────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -51,12 +47,19 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler: يمسك أي خطأ في التطبيق
+// ── Global Error Handler ──────────────────────────────
 app.use((err, req, res, next) => {
   console.error(err.stack);
+
+  // إخفاء تفاصيل الخطأ في الـ production
+  const message =
+    process.env.NODE_ENV === 'production'
+      ? 'Something went wrong'
+      : err.message;
+
   res.status(err.statusCode || 500).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    message,
   });
 });
 

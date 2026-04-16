@@ -8,14 +8,16 @@ const {
   updateProfile,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimiter');
+const { validateRegister, validateLogin } = require('../middleware/validate');
 
-// Auth routes
-router.post('/register', register);
-router.post('/login', login);
+// Auth routes مع Rate Limiter و Validation
+router.post('/register', authLimiter, validateRegister, register);
+router.post('/login', authLimiter, validateLogin, login);
 router.get('/me', protect, getMe);
 router.put('/updateprofile', protect, updateProfile);
 
-// Staff listing — يحتاجه الـ frontend عند إنشاء موعد جديد
+// Staff listing
 router.get('/staff', protect, async (req, res) => {
   try {
     const staff = await User.find({ role: 'staff', isActive: true })
