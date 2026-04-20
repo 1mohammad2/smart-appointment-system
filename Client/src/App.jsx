@@ -6,12 +6,13 @@ import { useAuth } from './context/AuthContext';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Appointments from './pages/Appointments';
 import NewAppointment from './pages/NewAppointment';
 import Services from './pages/Services';
 
-// Layout مع Navbar للصفحات المحمية
 const AppLayout = ({ children }) => {
   const { user } = useAuth();
   return (
@@ -31,6 +32,8 @@ const App = () => {
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
 
             {/* Protected routes */}
             <Route path="/dashboard" element={
@@ -46,7 +49,6 @@ const App = () => {
               <ProtectedRoute roles={['admin']}><Services /></ProtectedRoute>
             } />
 
-            {/* Default redirect */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </AppLayout>

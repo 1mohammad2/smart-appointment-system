@@ -1,27 +1,33 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useParams, useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import Alert from '../components/ui/Alert';
 
-const Login = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+const ResetPassword = () => {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [error, setError] = useState('');
+  const { token } = useParams();
   const navigate = useNavigate();
-
-  const handleChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (password !== confirm) {
+      return setError('Passwords do not match');
+    }
+    if (password.length < 6) {
+      return setError('Password must be at least 6 characters');
+    }
+
     setLoading(true);
     try {
-      await login(formData.email, formData.password);
-      navigate('/dashboard');
+      await api.put(`/auth/resetpassword/${token}`, { password });
+      navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.response?.data?.message || 'Reset failed');
     } finally {
       setLoading(false);
     }
@@ -30,10 +36,9 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800">📅 AppointPro</h1>
-          <p className="text-gray-500 mt-2">Sign in to your account</p>
+          <p className="text-gray-500 mt-2">Create new password</p>
         </div>
 
         {error && <Alert message={error} />}
@@ -41,61 +46,43 @@ const Login = () => {
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              New Password
             </label>
             <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="you@example.com"
+              placeholder="••••••••"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              Confirm Password
             </label>
             <input
               type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
               required
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••"
+              placeholder="••••••••"
             />
           </div>
-         
-<div className="text-right">
-  <Link
-    to="/forgot-password"
-    className="text-sm text-blue-600 hover:underline"
-  >
-    Forgot password?
-  </Link>
-</div>
 
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Resetting...' : 'Reset Password'}
           </button>
         </form>
-
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-blue-600 hover:underline font-medium">
-            Register
-          </Link>
-        </p>
       </div>
     </div>
   );
 };
 
-export default Login;
+export default ResetPassword;

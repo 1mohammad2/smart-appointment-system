@@ -4,36 +4,84 @@ const {
   sendCancellationNotice,
 } = require('../services/emailService');
 
-// ── @route   GET /api/appointments ────────────────────
+// ── GET /api/appointments ─────────────────────────────
 exports.getAppointments = async (req, res) => {
   try {
-    let query;
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      search,
+      startDate,
+      endDate,
+    } = req.query;
 
-    if (req.user.role === 'admin') {
-      query = Appointment.find();
-    } else if (req.user.role === 'staff') {
-      query = Appointment.find({ staff: req.user.id });
-    } else {
-      query = Appointment.find({ customer: req.user.id });
+    // بناء الـ query حسب الـ role
+    let filter = {};
+
+    if (req.user.role === 'staff') {
+      filter.staff = req.user.id;
+    } else if (req.user.role === 'customer') {
+      filter.customer = req.user.id;
     }
 
-    const appointments = await query
+    // فلتر الـ status
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    // فلتر التاريخ
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) filter.date.$gte = new Date(startDate);
+      if (endDate) filter.date.$lte = new Date(endDate);
+    }
+
+    // حساب الـ pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // جلب المواعيد مع الـ populate
+    let query = Appointment.find(filter)
       .populate('customer', 'name email phone')
       .populate('staff', 'name email')
       .populate('service', 'name duration price')
-      .sort({ date: 1, startTime: 1 });
+      .sort({ date: 1, startTime: 1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    const [appointments, total] = await Promise.all([
+      query,
+      Appointment.countDocuments(filter),
+    ]);
+
+    // البحث بالاسم بعد الـ populate
+    let results = appointments;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      results = appointments.filter(
+        (apt) =>
+          apt.customer?.name?.toLowerCase().includes(searchLower) ||
+          apt.service?.name?.toLowerCase().includes(searchLower) ||
+          apt.staff?.name?.toLowerCase().includes(searchLower)
+      );
+    }
 
     res.status(200).json({
       success: true,
-      count: appointments.length,
-      data: appointments,
+      count: results.length,
+      total,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
+      data: results,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ── @route   GET /api/appointments/:id ────────────────
+// ── GET /api/appointments/:id ─────────────────────────
 exports.getAppointment = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id)
@@ -54,7 +102,7 @@ exports.getAppointment = async (req, res) => {
   }
 };
 
-// ── @route   POST /api/appointments ───────────────────
+// ── POST /api/appointments ────────────────────────────
 exports.createAppointment = async (req, res) => {
   try {
     const { staff, service, date, startTime, endTime, notes } = req.body;
@@ -71,7 +119,6 @@ exports.createAppointment = async (req, res) => {
 
     res.status(201).json({ success: true, data: appointment });
 
-    // أرسل confirmation email بعد الـ response مباشرة
     try {
       const populated = await Appointment.findById(appointment._id)
         .populate('customer', 'name email')
@@ -89,7 +136,7 @@ exports.createAppointment = async (req, res) => {
   }
 };
 
-// ── @route   PUT /api/appointments/:id ────────────────
+// ── PUT /api/appointments/:id ─────────────────────────
 exports.updateAppointment = async (req, res) => {
   try {
     let appointment = await Appointment.findById(req.params.id);
@@ -123,7 +170,7 @@ exports.updateAppointment = async (req, res) => {
   }
 };
 
-// ── @route   DELETE /api/appointments/:id ─────────────
+// ── DELETE /api/appointments/:id ──────────────────────
 exports.deleteAppointment = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id);
@@ -149,7 +196,7 @@ exports.deleteAppointment = async (req, res) => {
   }
 };
 
-// ── @route   PUT /api/appointments/:id/status ─────────
+// ── PUT /api/appointments/:id/status ──────────────────
 exports.updateStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -177,7 +224,6 @@ exports.updateStatus = async (req, res) => {
 
     res.status(200).json({ success: true, data: appointment });
 
-    // لو الـ status تغيّر لـ cancelled، أرسل إشعار إلغاء
     if (status === 'cancelled') {
       try {
         const populated = await Appointment.findById(req.params.id)

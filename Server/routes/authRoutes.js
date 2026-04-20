@@ -6,16 +6,21 @@ const {
   login,
   getMe,
   updateProfile,
+  forgotPassword,
+  resetPassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
 const { validateRegister, validateLogin } = require('../middleware/validate');
 
-// Auth routes مع Rate Limiter و Validation
 router.post('/register', authLimiter, validateRegister, register);
 router.post('/login', authLimiter, validateLogin, login);
 router.get('/me', protect, getMe);
 router.put('/updateprofile', protect, updateProfile);
+
+// Forgot & Reset Password
+router.post('/forgotpassword', authLimiter, forgotPassword);
+router.put('/resetpassword/:token', resetPassword);
 
 // Staff listing
 router.get('/staff', protect, async (req, res) => {
