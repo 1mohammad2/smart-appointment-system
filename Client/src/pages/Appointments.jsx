@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/ui/Spinner';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Toast, { useToast } from '../components/ui/Toast';
 
 const Appointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -12,7 +14,11 @@ const Appointments = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false, id: null, action: null,
+  });
   const { user } = useAuth();
+  const { toasts, success, error: toastError } = useToast();
   const LIMIT = 10;
 
   const fetchAppointments = async (page = 1, status = 'all', searchTerm = '') => {
@@ -24,13 +30,12 @@ const Appointments = () => {
         ...(status !== 'all' && { status }),
         ...(searchTerm && { search: searchTerm }),
       });
-
       const { data } = await api.get(`/appointments?${params}`);
       setAppointments(data.data);
       setTotalPages(data.totalPages);
       setTotal(data.total);
     } catch (err) {
-      console.error(err);
+      toastError('Failed to load appointments');
     } finally {
       setLoading(false);
     }
@@ -40,7 +45,6 @@ const Appointments = () => {
     fetchAppointments(currentPage, filter, search);
   }, [currentPage, filter]);
 
-  // Search مع delay لتقليل الـ requests
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
@@ -49,13 +53,20 @@ const Appointments = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const handleStatusUpdate = async (id, status) => {
+  const handleStatusUpdate = async () => {
+    const { id, action } = confirmDialog;
+    setConfirmDialog({ isOpen: false, id: null, action: null });
     try {
-      await api.put(`/appointments/${id}/status`, { status });
+      await api.put(`/appointments/${id}/status`, { status: action });
+      success(`Appointment ${action} successfully`);
       fetchAppointments(currentPage, filter, search);
     } catch (err) {
-      console.error(err);
+      toastError('Failed to update appointment');
     }
+  };
+
+  const openConfirm = (id, action) => {
+    setConfirmDialog({ isOpen: true, id, action });
   };
 
   const statusColors = {
@@ -67,28 +78,48 @@ const Appointments = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      <Toast toasts={toasts} />
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.action === 'cancelled' ? 'Cancel Appointment?' : 'Confirm Appointment?'}
+        message={
+          confirmDialog.action === 'cancelled'
+            ? 'Are you sure you want to cancel this appointment? This cannot be undone.'
+            : 'Are you sure you want to confirm this appointment?'
+        }
+        confirmText={confirmDialog.action === 'cancelled' ? 'Yes, Cancel' : 'Yes, Confirm'}
+        confirmColor={
+          confirmDialog.action === 'cancelled'
+            ? 'bg-red-600 hover:bg-red-700'
+            : 'bg-green-600 hover:bg-green-700'
+        }
+        onConfirm={handleStatusUpdate}
+        onCancel={() => setConfirmDialog({ isOpen: false, id: null, action: null })}
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Appointments</h1>
-          <p className="text-gray-500 text-sm mt-1">{total} total appointments</p>
+          <p className="text-gray-500 text-sm mt-1">{total} total</p>
         </div>
         <Link
           to="/appointments/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition font-medium"
         >
-          + New Appointment
+          + New
         </Link>
       </div>
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="mb-4">
         <input
           type="text"
           placeholder="🔍 Search by customer, service, or staff..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
         />
       </div>
 
@@ -98,9 +129,9 @@ const Appointments = () => {
           <button
             key={s}
             onClick={() => { setFilter(s); setCurrentPage(1); }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition ${
+            className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition ${
               filter === s
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-white text-gray-600 hover:bg-gray-50 border'
             }`}
           >
@@ -113,48 +144,68 @@ const Appointments = () => {
       {loading ? (
         <Spinner />
       ) : appointments.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 bg-white rounded-2xl">
+        <div className="text-center py-16 text-gray-400 bg-white rounded-2xl shadow-sm">
           <p className="text-5xl mb-3">📭</p>
-          <p>No appointments found</p>
+          <p className="font-medium">No appointments found</p>
+          <Link to="/appointments/new" className="text-blue-600 hover:underline text-sm mt-2 block">
+            Book your first appointment
+          </Link>
         </div>
       ) : (
         <div className="space-y-3">
           {appointments.map((apt) => (
             <div
               key={apt._id}
-              className="bg-white rounded-2xl p-5 shadow-sm flex justify-between items-center"
+              className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
-              <div>
-                <p className="font-semibold text-gray-800">{apt.service?.name}</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  📅 {new Date(apt.date).toLocaleDateString()} · ⏰ {apt.startTime} - {apt.endTime}
-                </p>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-semibold text-gray-800">{apt.service?.name}</p>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[apt.status]}`}>
+                    {apt.status}
+                  </span>
+                </div>
                 <p className="text-sm text-gray-500">
-                  👤 {apt.customer?.name} · 🧑‍⚕️ {apt.staff?.name}
+                  📅 {new Date(apt.date).toLocaleDateString('en-US', {
+                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+                  })}
+                  {' · '}⏰ {apt.startTime} - {apt.endTime}
+                </p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  👤 {apt.customer?.name}
+                  {' · '}🧑‍⚕️ {apt.staff?.name}
+                  {apt.service?.price && ` · 💰 AED ${apt.service.price}`}
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[apt.status]}`}>
-                  {apt.status}
-                </span>
-
+              <div className="flex items-center gap-2 flex-wrap">
                 {(user?.role === 'admin' || user?.role === 'staff') &&
                   apt.status === 'pending' && (
                     <button
-                      onClick={() => handleStatusUpdate(apt._id, 'confirmed')}
-                      className="text-xs bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition"
+                      onClick={() => openConfirm(apt._id, 'confirmed')}
+                      className="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 transition font-medium"
                     >
-                      Confirm
+                      ✅ Confirm
                     </button>
                   )}
 
-                {user?.role === 'admin' && apt.status !== 'cancelled' && (
+                {user?.role === 'admin' &&
+                  apt.status !== 'cancelled' &&
+                  apt.status !== 'completed' && (
+                    <button
+                      onClick={() => openConfirm(apt._id, 'cancelled')}
+                      className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition font-medium"
+                    >
+                      ❌ Cancel
+                    </button>
+                  )}
+
+                {user?.role === 'admin' && apt.status === 'confirmed' && (
                   <button
-                    onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
-                    className="text-xs bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                    onClick={() => openConfirm(apt._id, 'completed')}
+                    className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-lg hover:bg-blue-600 transition font-medium"
                   >
-                    Cancel
+                    🎉 Complete
                   </button>
                 )}
               </div>
@@ -169,19 +220,17 @@ const Appointments = () => {
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-4 py-2 rounded-lg border bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="px-4 py-2 rounded-xl border bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             ← Previous
           </button>
-
-          <span className="text-gray-600 text-sm">
-            Page {currentPage} of {totalPages}
+          <span className="text-gray-600 text-sm font-medium">
+            {currentPage} / {totalPages}
           </span>
-
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 rounded-lg border bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="px-4 py-2 rounded-xl border bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             Next →
           </button>
