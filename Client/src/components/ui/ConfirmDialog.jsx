@@ -1,32 +1,84 @@
-const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm', confirmColor = 'bg-red-600 hover:bg-red-700' }) => {
+const ConfirmDialog = ({
+  isOpen, title, message,
+  onConfirm, onCancel,
+  confirmText = 'Confirm',
+  confirmColor = 'danger',
+}) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black bg-opacity-40"
         onClick={onCancel}
+        style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(26,26,26,0.5)',
+          backdropFilter: 'blur(4px)',
+        }}
       />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 z-10">
-        <h3 className="text-lg font-bold text-gray-800 mb-2">{title}</h3>
-        <p className="text-gray-500 text-sm mb-6">{message}</p>
+      <div className="fade-up" style={{
+        position: 'relative',
+        background: 'var(--warm-white)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '40px',
+        width: '100%', maxWidth: '420px',
+        margin: '24px',
+        boxShadow: 'var(--shadow-lg)',
+      }}>
+        {/* Gold top line */}
+        <div style={{
+          position: 'absolute', top: 0, left: '40px', right: '40px',
+          height: '2px',
+          background: 'linear-gradient(90deg, transparent, var(--gold), transparent)',
+          borderRadius: '2px',
+        }} />
 
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition font-medium"
-          >
+        <h3 style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '1.5rem', fontWeight: '400',
+          color: 'var(--text-primary)', marginBottom: '12px',
+        }}>{title}</h3>
+
+        <p style={{
+          color: 'var(--text-muted)', fontSize: '0.875rem',
+          lineHeight: 1.6, marginBottom: '32px',
+          fontWeight: '300',
+        }}>{message}</p>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={onCancel} className="btn-ghost" style={{ flex: 1 }}>
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 text-white py-2 rounded-lg transition font-medium ${confirmColor}`}
-          >
-            {confirmText}
-          </button>
+            style={{
+              flex: 1,
+              padding: '14px 24px',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              background: confirmColor === 'danger'
+                ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                : 'linear-gradient(135deg, #22c55e, #16a34a)',
+              color: 'white',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              fontFamily: 'var(--font-body)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >{confirmText}</button>
         </div>
       </div>
     </div>

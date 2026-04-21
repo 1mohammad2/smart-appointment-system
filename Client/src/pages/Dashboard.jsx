@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -8,22 +9,60 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Spinner from '../components/ui/Spinner';
 
-const StatCard = ({ title, value, icon, color }) => (
-  <div className={`bg-white rounded-2xl p-6 shadow-sm border-l-4 ${color}`}>
-    <div className="flex justify-between items-center">
+const StatCard = ({ title, value, icon, delay = '0s' }) => (
+  <div className="stat-card fade-up" style={{ animationDelay: delay }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <div>
-        <p className="text-gray-500 text-sm">{title}</p>
-        <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
+        <div style={{
+          fontSize: '0.65rem', fontWeight: '600',
+          letterSpacing: '0.15em', textTransform: 'uppercase',
+          color: 'var(--text-muted)', marginBottom: '10px',
+        }}>{title}</div>
+        <div style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '2.8rem', fontWeight: '300',
+          color: 'var(--text-primary)', lineHeight: 1,
+        }}>{value}</div>
       </div>
-      <span className="text-4xl">{icon}</span>
+      <div style={{
+        width: '48px', height: '48px',
+        background: 'linear-gradient(135deg, rgba(201,168,76,0.12), rgba(201,168,76,0.06))',
+        borderRadius: '12px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '22px',
+        border: '1px solid rgba(201,168,76,0.2)',
+      }}>{icon}</div>
     </div>
   </div>
 );
 
-const COLORS = ['#f59e0b', '#22c55e', '#ef4444', '#3b82f6'];
+const COLORS = ['#C9A84C', '#22c55e', '#ef4444', '#3b82f6'];
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{
+        background: 'var(--warm-white)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        padding: '10px 14px',
+        boxShadow: 'var(--shadow-md)',
+        fontSize: '0.8rem',
+      }}>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</p>
+        <p style={{ color: 'var(--gold)', fontWeight: '600' }}>
+          {payload[0].value} appointments
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === 'ar';
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,99 +90,166 @@ const Dashboard = () => {
     cancelled: appointments.filter((a) => a.status === 'cancelled').length,
   };
 
-  // بيانات الـ Pie Chart
   const pieData = [
-    { name: 'Pending', value: stats.pending },
-    { name: 'Confirmed', value: stats.confirmed },
-    { name: 'Cancelled', value: stats.cancelled },
-    { name: 'Completed', value: stats.completed },
+    { name: t('dashboard.pending'), value: stats.pending },
+    { name: t('dashboard.confirmed'), value: stats.confirmed },
+    { name: t('dashboard.cancelled'), value: stats.cancelled },
+    { name: t('dashboard.completed'), value: stats.completed },
   ].filter((d) => d.value > 0);
 
-  // بيانات الـ Bar Chart — آخر 7 أيام
+  const days = isAr
+    ? ['أحد', 'اثن', 'ثلا', 'أرب', 'خمس', 'جمع', 'سبت']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - i));
-    const dateStr = date.toLocaleDateString('en-US', { weekday: 'short' });
-    const count = appointments.filter((a) => {
-      const aDate = new Date(a.date);
-      return aDate.toDateString() === date.toDateString();
-    }).length;
-    return { day: dateStr, appointments: count };
+    const count = appointments.filter((a) =>
+      new Date(a.date).toDateString() === date.toDateString()
+    ).length;
+    return { day: days[date.getDay()], appointments: count };
   });
 
   const upcoming = appointments
     .filter((a) => new Date(a.date) >= new Date() && a.status !== 'cancelled')
     .slice(0, 5);
 
-  const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-700',
-    confirmed: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700',
-    completed: 'bg-blue-100 text-blue-700',
+  const statusConfig = {
+    pending:   { badge: 'badge-pending',   label: t('dashboard.pending') },
+    confirmed: { badge: 'badge-confirmed', label: t('dashboard.confirmed') },
+    cancelled: { badge: 'badge-cancelled', label: t('dashboard.cancelled') },
+    completed: { badge: 'badge-completed', label: t('dashboard.completed') },
   };
 
+  const statCards = [
+    { title: t('dashboard.total'),     value: stats.total,     icon: '📋', delay: '0s' },
+    { title: t('dashboard.pending'),   value: stats.pending,   icon: '⏳', delay: '0.1s' },
+    { title: t('dashboard.confirmed'), value: stats.confirmed, icon: '✅', delay: '0.2s' },
+    { title: t('dashboard.completed'), value: stats.completed, icon: '🎉', delay: '0.3s' },
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Welcome */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">
-          Welcome back, {user?.name}! 👋
+    <div style={{
+      maxWidth: '1200px',
+      margin: '0 auto',
+      padding: '40px 24px',
+    }}>
+      {/* Header */}
+      <div className="fade-up" style={{ marginBottom: '40px' }}>
+        <div style={{
+          fontSize: '0.65rem', letterSpacing: '0.2em',
+          textTransform: 'uppercase', color: 'var(--gold)',
+          fontWeight: '600', marginBottom: '8px',
+        }}>
+          {new Date().toLocaleDateString(isAr ? 'ar-AE' : 'en-AE', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+          })}
+        </div>
+        <h1 style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '2.4rem', fontWeight: '400',
+          color: 'var(--text-primary)', lineHeight: 1.1,
+        }}>
+          {t('dashboard.welcome')},{' '}
+          <span style={{
+            background: 'linear-gradient(135deg, var(--gold-dark), var(--gold))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontStyle: 'italic',
+          }}>{user?.name}</span>
         </h1>
-        <p className="text-gray-500 mt-1">Here's your appointments overview.</p>
+        <p style={{
+          color: 'var(--text-muted)', marginTop: '8px',
+          fontSize: '0.875rem', fontWeight: '300',
+        }}>{t('dashboard.overview')}</p>
+        <div className="gold-divider" style={{ margin: '20px 0 0' }} />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Total" value={stats.total} icon="📋" color="border-blue-500" />
-        <StatCard title="Pending" value={stats.pending} icon="⏳" color="border-yellow-500" />
-        <StatCard title="Confirmed" value={stats.confirmed} icon="✅" color="border-green-500" />
-        <StatCard title="Completed" value={stats.completed} icon="🎉" color="border-purple-500" />
+      {/* Stat Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '20px',
+        marginBottom: '32px',
+      }}>
+        {statCards.map((card) => (
+          <StatCard key={card.title} {...card} />
+        ))}
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '20px',
+        marginBottom: '32px',
+      }}>
         {/* Bar Chart */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">
-            Last 7 Days Activity
-          </h2>
+        <div className="luxury-card" style={{ padding: '28px' }}>
+          <div style={{
+            fontSize: '0.65rem', letterSpacing: '0.15em',
+            textTransform: 'uppercase', color: 'var(--gold)',
+            fontWeight: '600', marginBottom: '4px',
+          }}>Analytics</div>
+          <h3 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.3rem', fontWeight: '400',
+            color: 'var(--text-primary)', marginBottom: '24px',
+          }}>{t('dashboard.last7Days')}</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={last7Days}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="day" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="appointments" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <BarChart data={last7Days} barSize={28}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--beige-dark)" vertical={false} />
+              <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'var(--font-body)' }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(201,168,76,0.05)' }} />
+              <Bar dataKey="appointments" fill="url(#goldGradient)" radius={[4, 4, 0, 0]} />
+              <defs>
+                <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--gold)" />
+                  <stop offset="100%" stopColor="var(--gold-dark)" />
+                </linearGradient>
+              </defs>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Pie Chart */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">
-            Status Overview
-          </h2>
+        <div className="luxury-card" style={{ padding: '28px' }}>
+          <div style={{
+            fontSize: '0.65rem', letterSpacing: '0.15em',
+            textTransform: 'uppercase', color: 'var(--gold)',
+            fontWeight: '600', marginBottom: '4px',
+          }}>Overview</div>
+          <h3 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.3rem', fontWeight: '400',
+            color: 'var(--text-primary)', marginBottom: '24px',
+          }}>{t('dashboard.statusOverview')}</h3>
           {pieData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-gray-400">
-              No data yet
-            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              height: '200px', color: 'var(--text-muted)',
+              fontFamily: 'var(--font-display)', fontSize: '1rem',
+              fontStyle: 'italic',
+            }}>{t('dashboard.noData')}</div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  dataKey="value"
-                >
-                  {pieData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                <Pie data={pieData} cx="50%" cy="50%"
+                  innerRadius={55} outerRadius={80} dataKey="value"
+                  paddingAngle={3}>
+                  {pieData.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend />
+                <Legend iconType="circle" iconSize={8}
+                  formatter={(value) => (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {value}
+                    </span>
+                  )}
+                />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -151,40 +257,74 @@ const Dashboard = () => {
       </div>
 
       {/* Upcoming Appointments */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-800">Upcoming Appointments</h2>
-          <Link
-            to="/appointments/new"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition"
-          >
-            + New
+      <div className="luxury-card" style={{ padding: '28px' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', marginBottom: '24px',
+        }}>
+          <div>
+            <div style={{
+              fontSize: '0.65rem', letterSpacing: '0.15em',
+              textTransform: 'uppercase', color: 'var(--gold)',
+              fontWeight: '600', marginBottom: '4px',
+            }}>Schedule</div>
+            <h3 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.3rem', fontWeight: '400',
+              color: 'var(--text-primary)',
+            }}>{t('dashboard.upcoming')}</h3>
+          </div>
+          <Link to="/appointments/new" className="btn-gold"
+            style={{ textDecoration: 'none', fontSize: '0.7rem', padding: '10px 24px' }}>
+            + {t('dashboard.newAppointment')}
           </Link>
         </div>
 
         {upcoming.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            <p className="text-5xl mb-3">📭</p>
-            <p>No upcoming appointments</p>
+          <div style={{
+            textAlign: 'center', padding: '60px 20px',
+            color: 'var(--text-muted)',
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>📭</div>
+            <p style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.1rem', fontStyle: 'italic',
+              marginBottom: '8px',
+            }}>{t('dashboard.noUpcoming')}</p>
+            <Link to="/appointments/new" style={{
+              fontSize: '0.75rem', color: 'var(--gold)',
+              textDecoration: 'none', fontWeight: '500',
+              letterSpacing: '0.05em',
+            }}>{t('dashboard.bookFirst')} →</Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {upcoming.map((apt) => (
-              <div
-                key={apt._id}
-                className="flex justify-between items-center p-4 bg-gray-50 rounded-xl"
-              >
-                <div>
-                  <p className="font-medium text-gray-800">{apt.service?.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(apt.date).toLocaleDateString()} at {apt.startTime}
-                    {' · '}
-                    {apt.staff?.name}
-                  </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {upcoming.map((apt, i) => (
+              <div key={apt._id} className="apt-row fade-up"
+                style={{ animationDelay: `${i * 0.08}s` }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  alignItems: 'center', gap: '16px', flexWrap: 'wrap',
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontWeight: '500', color: 'var(--text-primary)',
+                      marginBottom: '4px', fontSize: '0.9rem',
+                    }}>{apt.service?.name}</div>
+                    <div style={{
+                      fontSize: '0.78rem', color: 'var(--text-muted)',
+                    }}>
+                      {new Date(apt.date).toLocaleDateString(isAr ? 'ar-AE' : 'en-AE', {
+                        weekday: 'short', month: 'short', day: 'numeric'
+                      })}
+                      {' · '}{apt.startTime}
+                      {' · '}{apt.staff?.name}
+                    </div>
+                  </div>
+                  <span className={`status-badge ${statusConfig[apt.status]?.badge}`}>
+                    {statusConfig[apt.status]?.label}
+                  </span>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[apt.status]}`}>
-                  {apt.status}
-                </span>
               </div>
             ))}
           </div>

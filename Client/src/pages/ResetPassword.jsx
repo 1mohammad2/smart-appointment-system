@@ -1,27 +1,24 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
-import Alert from '../components/ui/Alert';
+import LanguageSwitcher from '../components/ui/LanguageSwitcher';
 
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const { token } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    if (password !== confirm) {
-      return setError('Passwords do not match');
-    }
-    if (password.length < 6) {
-      return setError('Password must be at least 6 characters');
-    }
-
+    if (password !== confirm) return setError('Passwords do not match');
+    if (password.length < 6) return setError('Password must be at least 6 characters');
     setLoading(true);
     try {
       await api.put(`/auth/resetpassword/${token}`, { password });
@@ -34,52 +31,91 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">📅 AppointPro</h1>
-          <p className="text-gray-500 mt-2">Create new password</p>
+    <div style={{
+      minHeight: '100vh', background: 'var(--cream)',
+      display: 'flex', alignItems: 'center',
+      justifyContent: 'center', padding: '40px 24px',
+    }}>
+      <div style={{ position: 'fixed', top: '24px', right: '24px', zIndex: 10 }}>
+        <LanguageSwitcher />
+      </div>
+
+      <div style={{ width: '100%', maxWidth: '440px' }} className="fade-up">
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{
+            width: '56px', height: '56px',
+            background: 'linear-gradient(135deg, var(--gold), var(--gold-dark))',
+            borderRadius: '14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '26px', margin: '0 auto 16px',
+            boxShadow: 'var(--shadow-gold)',
+          }}>🔐</div>
+          <h1 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '2rem', fontWeight: '400',
+            color: 'var(--text-primary)',
+          }}>{t('auth.resetPassword')}</h1>
         </div>
 
-        {error && <Alert message={error} />}
+        <div style={{
+          background: 'var(--warm-white)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-xl)',
+          padding: '40px',
+          boxShadow: 'var(--shadow-md)',
+        }}>
+          {error && (
+            <div style={{
+              background: '#FFF1F2', border: '1px solid #FECDD3',
+              borderRadius: 'var(--radius-sm)',
+              padding: '12px 16px', marginBottom: '24px',
+              fontSize: '0.8rem', color: '#9F1239',
+            }}>{error}</div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              New Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-            />
-          </div>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label className="luxury-label">{t('auth.newPassword')}</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required placeholder="••••••••"
+                    className="luxury-input"
+                    style={{ paddingRight: '48px' }}
+                  />
+                  <button type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    style={{
+                      position: 'absolute', right: '14px', top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none', border: 'none',
+                      cursor: 'pointer', fontSize: '14px',
+                      color: 'var(--text-muted)',
+                    }}>{showPass ? '🙈' : '👁️'}</button>
+                </div>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-            />
-          </div>
+              <div>
+                <label className="luxury-label">{t('auth.confirmNewPassword')}</label>
+                <input
+                  type="password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required placeholder="••••••••"
+                  className="luxury-input"
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            {loading ? 'Resetting...' : 'Reset Password'}
-          </button>
-        </form>
+              <button type="submit" disabled={loading}
+                className="btn-gold" style={{ width: '100%' }}>
+                {loading ? t('auth.resetting') : t('auth.resetPassword')}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

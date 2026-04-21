@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/ui/Spinner';
@@ -19,14 +20,15 @@ const Appointments = () => {
   });
   const { user } = useAuth();
   const { toasts, success, error: toastError } = useToast();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === 'ar';
   const LIMIT = 10;
 
   const fetchAppointments = async (page = 1, status = 'all', searchTerm = '') => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        page,
-        limit: LIMIT,
+        page, limit: LIMIT,
         ...(status !== 'all' && { status }),
         ...(searchTerm && { search: searchTerm }),
       });
@@ -34,8 +36,8 @@ const Appointments = () => {
       setAppointments(data.data);
       setTotalPages(data.totalPages);
       setTotal(data.total);
-    } catch (err) {
-      toastError('Failed to load appointments');
+    } catch {
+      toastError(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -58,156 +60,258 @@ const Appointments = () => {
     setConfirmDialog({ isOpen: false, id: null, action: null });
     try {
       await api.put(`/appointments/${id}/status`, { status: action });
-      success(`Appointment ${action} successfully`);
+      success(`${t('common.success')} ✓`);
       fetchAppointments(currentPage, filter, search);
-    } catch (err) {
-      toastError('Failed to update appointment');
+    } catch {
+      toastError(t('common.error'));
     }
   };
 
-  const openConfirm = (id, action) => {
-    setConfirmDialog({ isOpen: true, id, action });
+  const statusConfig = {
+    all:       { label: t('appointments.all'),       color: 'var(--text-secondary)' },
+    pending:   { label: t('appointments.pending'),   color: '#92700A' },
+    confirmed: { label: t('appointments.confirmed'), color: '#166534' },
+    completed: { label: t('appointments.completed'), color: '#1E40AF' },
+    cancelled: { label: t('appointments.cancelled'), color: '#9F1239' },
   };
 
-  const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-700',
-    confirmed: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700',
-    completed: 'bg-blue-100 text-blue-700',
+  const badgeClass = {
+    pending: 'badge-pending',
+    confirmed: 'badge-confirmed',
+    cancelled: 'badge-cancelled',
+    completed: 'badge-completed',
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 24px' }}>
       <Toast toasts={toasts} />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
-        title={confirmDialog.action === 'cancelled' ? 'Cancel Appointment?' : 'Confirm Appointment?'}
-        message={
-          confirmDialog.action === 'cancelled'
-            ? 'Are you sure you want to cancel this appointment? This cannot be undone.'
-            : 'Are you sure you want to confirm this appointment?'
-        }
-        confirmText={confirmDialog.action === 'cancelled' ? 'Yes, Cancel' : 'Yes, Confirm'}
-        confirmColor={
-          confirmDialog.action === 'cancelled'
-            ? 'bg-red-600 hover:bg-red-700'
-            : 'bg-green-600 hover:bg-green-700'
-        }
+        title={confirmDialog.action === 'cancelled'
+          ? t('appointments.cancelTitle')
+          : confirmDialog.action === 'completed'
+          ? t('appointments.complete') + '?'
+          : t('appointments.confirmTitle')}
+        message={confirmDialog.action === 'cancelled'
+          ? t('appointments.cancelMsg')
+          : t('appointments.confirmMsg')}
+        confirmText={confirmDialog.action === 'cancelled'
+          ? t('appointments.yesCancel')
+          : t('appointments.yesConfirm')}
+        confirmColor={confirmDialog.action === 'cancelled'
+          ? 'bg-red-600 hover:bg-red-700'
+          : 'bg-green-600 hover:bg-green-700'}
         onConfirm={handleStatusUpdate}
         onCancel={() => setConfirmDialog({ isOpen: false, id: null, action: null })}
       />
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Appointments</h1>
-          <p className="text-gray-500 text-sm mt-1">{total} total</p>
+      <div className="fade-up" style={{ marginBottom: '40px' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px',
+        }}>
+          <div>
+            <div style={{
+              fontSize: '0.65rem', letterSpacing: '0.2em',
+              textTransform: 'uppercase', color: 'var(--gold)',
+              fontWeight: '600', marginBottom: '8px',
+            }}>Schedule</div>
+            <h1 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '2.4rem', fontWeight: '400',
+              color: 'var(--text-primary)', lineHeight: 1,
+            }}>{t('appointments.title')}</h1>
+            <p style={{
+              color: 'var(--text-muted)', fontSize: '0.8rem',
+              marginTop: '6px', letterSpacing: '0.05em',
+            }}>{total} {t('appointments.total')}</p>
+          </div>
+          <Link to="/appointments/new" className="btn-gold"
+            style={{ textDecoration: 'none' }}>
+            + {t('appointments.new')}
+          </Link>
         </div>
-        <Link
-          to="/appointments/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition font-medium"
-        >
-          + New
-        </Link>
+        <div className="gold-divider" style={{ margin: '20px 0 0' }} />
       </div>
 
       {/* Search */}
-      <div className="mb-4">
+      <div className="fade-up-1" style={{ marginBottom: '20px', position: 'relative' }}>
+        <div style={{
+          position: 'absolute', left: isAr ? 'auto' : '16px',
+          right: isAr ? '16px' : 'auto',
+          top: '50%', transform: 'translateY(-50%)',
+          color: 'var(--text-muted)', fontSize: '14px', pointerEvents: 'none',
+        }}>🔍</div>
         <input
           type="text"
-          placeholder="🔍 Search by customer, service, or staff..."
+          placeholder={t('appointments.search')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+          className="luxury-input"
+          style={{
+            paddingLeft: isAr ? '18px' : '44px',
+            paddingRight: isAr ? '44px' : '18px',
+          }}
         />
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map((s) => (
-          <button
-            key={s}
-            onClick={() => { setFilter(s); setCurrentPage(1); }}
-            className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition ${
-              filter === s
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-white text-gray-600 hover:bg-gray-50 border'
-            }`}
-          >
-            {s}
-          </button>
+      <div className="fade-up-2" style={{
+        display: 'flex', gap: '8px', marginBottom: '32px',
+        flexWrap: 'wrap',
+      }}>
+        {Object.entries(statusConfig).map(([key, val]) => (
+          <button key={key}
+            onClick={() => { setFilter(key); setCurrentPage(1); }}
+            style={{
+              padding: '8px 20px',
+              border: filter === key
+                ? '1px solid var(--gold)'
+                : '1px solid var(--border)',
+              borderRadius: '100px',
+              background: filter === key
+                ? 'linear-gradient(135deg, var(--gold), var(--gold-dark))'
+                : 'var(--warm-white)',
+              color: filter === key ? 'white' : 'var(--text-secondary)',
+              fontSize: '0.72rem',
+              fontWeight: '500',
+              letterSpacing: '0.08em',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              fontFamily: 'var(--font-body)',
+            }}
+          >{val.label}</button>
         ))}
       </div>
 
       {/* List */}
-      {loading ? (
-        <Spinner />
-      ) : appointments.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 bg-white rounded-2xl shadow-sm">
-          <p className="text-5xl mb-3">📭</p>
-          <p className="font-medium">No appointments found</p>
-          <Link to="/appointments/new" className="text-blue-600 hover:underline text-sm mt-2 block">
-            Book your first appointment
-          </Link>
+      {loading ? <Spinner /> : appointments.length === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: '80px 20px',
+          background: 'var(--warm-white)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-xl)',
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.4 }}>📭</div>
+          <p style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.2rem', fontStyle: 'italic',
+            color: 'var(--text-muted)', marginBottom: '12px',
+          }}>{t('appointments.noFound')}</p>
+          <Link to="/appointments/new" style={{
+            fontSize: '0.75rem', color: 'var(--gold)',
+            textDecoration: 'none', fontWeight: '500',
+            letterSpacing: '0.08em',
+          }}>{t('appointments.bookFirst')} →</Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {appointments.map((apt) => (
-            <div
-              key={apt._id}
-              className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-4"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-semibold text-gray-800">{apt.service?.name}</p>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[apt.status]}`}>
-                    {apt.status}
-                  </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {appointments.map((apt, i) => (
+            <div key={apt._id} className="apt-row fade-up"
+              style={{ animationDelay: `${i * 0.05}s` }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', gap: '16px', flexWrap: 'wrap',
+              }}>
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    marginBottom: '6px', flexWrap: 'wrap',
+                  }}>
+                    <span style={{
+                      fontWeight: '600', color: 'var(--text-primary)',
+                      fontSize: '0.95rem',
+                    }}>{apt.service?.name}</span>
+                    <span className={`status-badge ${badgeClass[apt.status]}`}>
+                      {statusConfig[apt.status]?.label}
+                    </span>
+                  </div>
+
+                  <div style={{
+                    fontSize: '0.78rem', color: 'var(--text-muted)',
+                    display: 'flex', gap: '16px', flexWrap: 'wrap',
+                  }}>
+                    <span>
+                      📅 {new Date(apt.date).toLocaleDateString(
+                        isAr ? 'ar-AE' : 'en-AE',
+                        { weekday: 'short', month: 'short', day: 'numeric' }
+                      )}
+                    </span>
+                    <span>⏰ {apt.startTime} — {apt.endTime}</span>
+                    <span>👤 {apt.customer?.name}</span>
+                    <span>🧑‍💼 {apt.staff?.name}</span>
+                    {apt.service?.price && (
+                      <span style={{ color: 'var(--gold)', fontWeight: '500' }}>
+                        {t('common.aed')} {apt.service.price}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500">
-                  📅 {new Date(apt.date).toLocaleDateString('en-US', {
-                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
-                  })}
-                  {' · '}⏰ {apt.startTime} - {apt.endTime}
-                </p>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  👤 {apt.customer?.name}
-                  {' · '}🧑‍⚕️ {apt.staff?.name}
-                  {apt.service?.price && ` · 💰 AED ${apt.service.price}`}
-                </p>
-              </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                {(user?.role === 'admin' || user?.role === 'staff') &&
-                  apt.status === 'pending' && (
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {(user?.role === 'admin' || user?.role === 'staff') &&
+                    apt.status === 'pending' && (
+                      <button
+                        onClick={() => setConfirmDialog({ isOpen: true, id: apt._id, action: 'confirmed' })}
+                        style={{
+                          padding: '8px 16px',
+                          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                          color: 'white', border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.7rem', fontWeight: '600',
+                          letterSpacing: '0.08em', cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                      >✓ {t('appointments.confirm')}</button>
+                    )}
+
+                  {user?.role === 'admin' && apt.status === 'confirmed' && (
                     <button
-                      onClick={() => openConfirm(apt._id, 'confirmed')}
-                      className="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 transition font-medium"
-                    >
-                      ✅ Confirm
-                    </button>
+                      onClick={() => setConfirmDialog({ isOpen: true, id: apt._id, action: 'completed' })}
+                      style={{
+                        padding: '8px 16px',
+                        background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                        color: 'white', border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.7rem', fontWeight: '600',
+                        letterSpacing: '0.08em', cursor: 'pointer',
+                        fontFamily: 'var(--font-body)',
+                      }}
+                    >🎉 {t('appointments.complete')}</button>
                   )}
 
-                {user?.role === 'admin' &&
-                  apt.status !== 'cancelled' &&
-                  apt.status !== 'completed' && (
-                    <button
-                      onClick={() => openConfirm(apt._id, 'cancelled')}
-                      className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition font-medium"
-                    >
-                      ❌ Cancel
-                    </button>
-                  )}
-
-                {user?.role === 'admin' && apt.status === 'confirmed' && (
-                  <button
-                    onClick={() => openConfirm(apt._id, 'completed')}
-                    className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-lg hover:bg-blue-600 transition font-medium"
-                  >
-                    🎉 Complete
-                  </button>
-                )}
+                  {user?.role === 'admin' &&
+                    apt.status !== 'cancelled' &&
+                    apt.status !== 'completed' && (
+                      <button
+                        onClick={() => setConfirmDialog({ isOpen: true, id: apt._id, action: 'cancelled' })}
+                        style={{
+                          padding: '8px 16px',
+                          background: 'transparent',
+                          color: '#9F1239',
+                          border: '1px solid #FECDD3',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.7rem', fontWeight: '600',
+                          letterSpacing: '0.08em', cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#FFF1F2';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >✕ {t('appointments.cancel')}</button>
+                    )}
+                </div>
               </div>
             </div>
           ))}
@@ -216,24 +320,58 @@ const Appointments = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-3 mt-8">
+        <div style={{
+          display: 'flex', justifyContent: 'center',
+          alignItems: 'center', gap: '12px', marginTop: '40px',
+        }}>
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-4 py-2 rounded-xl border bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            ← Previous
-          </button>
-          <span className="text-gray-600 text-sm font-medium">
-            {currentPage} / {totalPages}
-          </span>
+            className="btn-ghost"
+            style={{
+              padding: '10px 20px', fontSize: '0.72rem',
+              opacity: currentPage === 1 ? 0.4 : 1,
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+            }}
+          >← {t('appointments.previous')}</button>
+
+          <div style={{
+            display: 'flex', gap: '6px', alignItems: 'center',
+          }}>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const page = i + 1;
+              return (
+                <button key={page}
+                  onClick={() => setCurrentPage(page)}
+                  style={{
+                    width: '36px', height: '36px',
+                    border: currentPage === page
+                      ? '1px solid var(--gold)'
+                      : '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: currentPage === page
+                      ? 'linear-gradient(135deg, var(--gold), var(--gold-dark))'
+                      : 'var(--warm-white)',
+                    color: currentPage === page ? 'white' : 'var(--text-secondary)',
+                    fontSize: '0.8rem', fontWeight: '500',
+                    cursor: 'pointer', transition: 'all 0.3s ease',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >{page}</button>
+              );
+            })}
+          </div>
+
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 rounded-xl border bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            Next →
-          </button>
+            className="btn-ghost"
+            style={{
+              padding: '10px 20px', fontSize: '0.72rem',
+              opacity: currentPage === totalPages ? 0.4 : 1,
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+            }}
+          >{t('appointments.next')} →</button>
         </div>
       )}
     </div>

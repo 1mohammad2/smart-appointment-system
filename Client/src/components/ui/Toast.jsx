@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-// Hook لاستخدام الـ Toast من أي مكان
 export const useToast = () => {
   const [toasts, setToasts] = useState([]);
 
@@ -9,42 +8,87 @@ export const useToast = () => {
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    }, 3500);
   };
 
-  const success = (message) => addToast(message, 'success');
-  const error = (message) => addToast(message, 'error');
-  const info = (message) => addToast(message, 'info');
-
-  return { toasts, success, error, info };
+  return {
+    toasts,
+    success: (msg) => addToast(msg, 'success'),
+    error: (msg) => addToast(msg, 'error'),
+    info: (msg) => addToast(msg, 'info'),
+  };
 };
 
-// Component يعرض الـ Toasts
 const Toast = ({ toasts }) => {
-  const styles = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    info: 'bg-blue-500',
-  };
-
-  const icons = {
-    success: '✅',
-    error: '❌',
-    info: 'ℹ️',
+  const config = {
+    success: {
+      bg: 'var(--warm-white)',
+      border: '#BBF7D0',
+      icon: '✦',
+      iconColor: '#22c55e',
+      textColor: 'var(--text-primary)',
+    },
+    error: {
+      bg: 'var(--warm-white)',
+      border: '#FECDD3',
+      icon: '✕',
+      iconColor: '#ef4444',
+      textColor: 'var(--text-primary)',
+    },
+    info: {
+      bg: 'var(--warm-white)',
+      border: 'var(--gold-light)',
+      icon: '✦',
+      iconColor: 'var(--gold)',
+      textColor: 'var(--text-primary)',
+    },
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 space-y-2">
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className={`${styles[toast.type]} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 min-w-64 animate-pulse`}
-        >
-          <span>{icons[toast.type]}</span>
-          <span className="text-sm font-medium">{toast.message}</span>
-        </div>
-      ))}
-    </div>
+    <>
+      <style>{`
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
+      <div style={{
+        position: 'fixed', bottom: '32px', right: '32px',
+        zIndex: 9999, display: 'flex',
+        flexDirection: 'column', gap: '10px',
+      }}>
+        {toasts.map((toast) => {
+          const c = config[toast.type];
+          return (
+            <div key={toast.id} style={{
+              background: c.bg,
+              border: `1px solid ${c.border}`,
+              borderRadius: 'var(--radius-md)',
+              padding: '16px 20px',
+              display: 'flex', alignItems: 'center', gap: '12px',
+              minWidth: '280px', maxWidth: '360px',
+              boxShadow: 'var(--shadow-lg)',
+              animation: 'slideIn 0.3s ease forwards',
+            }}>
+              <div style={{
+                width: '28px', height: '28px',
+                borderRadius: '50%',
+                background: `${c.iconColor}15`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '12px', color: c.iconColor,
+                fontWeight: '700', flexShrink: 0,
+              }}>{c.icon}</div>
+              <span style={{
+                fontSize: '0.82rem',
+                color: c.textColor,
+                fontWeight: '500',
+                letterSpacing: '0.02em',
+              }}>{toast.message}</span>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 };
 
