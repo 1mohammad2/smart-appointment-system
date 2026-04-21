@@ -43,40 +43,26 @@ const AppointmentSchema = new mongoose.Schema(
       default: false,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 AppointmentSchema.index({ date: 1, staff: 1 });
 
-// التحقق من تعارض المواعيد
-AppointmentSchema.pre('save', async function (next) {
-  try {
-    if (!this.isModified('date') && !this.isModified('startTime')) {
-      return next();
-    }
+// ✅ بدون next — متوافق مع mongoose الجديد
+AppointmentSchema.pre('save', async function () {
+  if (!this.isModified('date') && !this.isModified('startTime')) return;
 
-    const conflict = await mongoose.model('Appointment').findOne({
-      staff: this.staff,
-      date: this.date,
-      status: { $nin: ['cancelled'] },
-      _id: { $ne: this._id },
-      startTime: { $lt: this.endTime },
-      endTime: { $gt: this.startTime },
-    });
+  const conflict = await mongoose.model('Appointment').findOne({
+    staff: this.staff,
+    date: this.date,
+    status: { $nin: ['cancelled'] },
+    _id: { $ne: this._id },
+    startTime: { $lt: this.endTime },
+    endTime: { $gt: this.startTime },
+  });
 
-    if (conflict) {
-      const err = new Error(
-        'This time slot is already booked for this staff member'
-      );
-      err.statusCode = 400;
-      return next(err);
-    }
-
-    return next();
-  } catch (err) {
-    return next(err);
+  if (conflict) {
+    throw new Error('This time slot is already booked for this staff member');
   }
 });
 
