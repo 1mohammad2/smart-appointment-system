@@ -12,11 +12,12 @@ import Dashboard from './pages/Dashboard';
 import Appointments from './pages/Appointments';
 import NewAppointment from './pages/NewAppointment';
 import Services from './pages/Services';
+import Users from './pages/Users';
 
 const AppLayout = ({ children }) => {
   const { user } = useAuth();
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: '100vh', background: 'var(--cream)' }}>
       {user && <Navbar />}
       {children}
     </div>
@@ -29,13 +30,11 @@ const App = () => {
       <AuthProvider>
         <AppLayout>
           <Routes>
-            {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-            {/* Protected routes */}
             <Route path="/dashboard" element={
               <ProtectedRoute><Dashboard /></ProtectedRoute>
             } />
@@ -47,6 +46,9 @@ const App = () => {
             } />
             <Route path="/services" element={
               <ProtectedRoute roles={['admin']}><Services /></ProtectedRoute>
+            } />
+            <Route path="/users" element={
+              <ProtectedRoute roles={['admin']}><Users /></ProtectedRoute>
             } />
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

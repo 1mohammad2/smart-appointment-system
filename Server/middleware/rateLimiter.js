@@ -1,25 +1,29 @@
 const rateLimit = require('express-rate-limit');
 
-// حد الـ requests للـ Auth routes
+// للـ Auth routes فقط — تسجيل دخول وتسجيل
 exports.authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 دقيقة
-  max: 10, // أقصى 10 محاولات كل 15 دقيقة
+  windowMs: 15 * 60 * 1000,
+  max: 20,
   message: {
     success: false,
     message: 'Too many attempts, please try again after 15 minutes',
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // تجاهل الـ health check
+  skip: (req) => req.path === '/api/health',
 });
 
-// حد الـ requests العام لكل الـ API
+// للـ API العام — أكثر تساهلاً
 exports.generalLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 دقائق
-  max: 100, // أقصى 100 request كل 10 دقائق
+  windowMs: 10 * 60 * 1000,
+  max: 500, // رفعنا الحد من 100 لـ 500
   message: {
     success: false,
     message: 'Too many requests, please slow down',
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // تجاهل الـ health check تماماً
+  skip: (req) => req.path === '/api/health',
 });

@@ -8,7 +8,8 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === 'ar';
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -78,7 +79,10 @@ const Navbar = () => {
             {[
               { path: '/dashboard', label: t('nav.dashboard') },
               { path: '/appointments', label: t('nav.appointments') },
-              ...(user?.role === 'admin' ? [{ path: '/services', label: t('nav.services') }] : []),
+              ...(user?.role === 'admin' ? [
+                { path: '/services', label: t('nav.services') },
+                { path: '/users', label: isAr ? 'المستخدمون' : 'Users' },
+              ] : []),
             ].map(({ path, label }) => (
               <Link key={path} to={path} style={{
                 textDecoration: 'none',
@@ -153,7 +157,10 @@ const Navbar = () => {
             {[
               { path: '/dashboard', label: t('nav.dashboard') },
               { path: '/appointments', label: t('nav.appointments') },
-              ...(user?.role === 'admin' ? [{ path: '/services', label: t('nav.services') }] : []),
+              ...(user?.role === 'admin' ? [
+                { path: '/services', label: t('nav.services') },
+                { path: '/users', label: isAr ? 'المستخدمون' : 'Users' },
+              ] : []),
             ].map(({ path, label }) => (
               <Link key={path} to={path}
                 onClick={() => setMenuOpen(false)}
