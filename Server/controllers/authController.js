@@ -27,7 +27,7 @@ const sendTokenResponse = (user, statusCode, res) => {
 // ── Register ──────────────────────────────────────────
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -37,12 +37,14 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Role مقفول على customer دائماً عند التسجيل
+    // الـ Admin هو الوحيد اللي يقدر يغيّر الـ role
     const user = await User.create({
       name,
       email,
       password,
       phone,
-      role: role === 'admin' ? 'customer' : role || 'customer',
+      role: 'customer',
     });
 
     sendTokenResponse(user, 201, res);

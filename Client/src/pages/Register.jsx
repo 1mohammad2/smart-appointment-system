@@ -6,7 +6,7 @@ import LanguageSwitcher from '../components/ui/LanguageSwitcher';
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', phone: '', role: 'customer',
+    name: '', email: '', password: '', phone: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -21,21 +21,40 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Client-side validation
+    if (formData.name.trim().length < 2) {
+      return setError('Name must be at least 2 characters');
+    }
+    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      return setError('Please enter a valid email address');
+    }
+    if (formData.password.length < 6) {
+      return setError('Password must be at least 6 characters');
+    }
+
     setLoading(true);
     try {
-      await register(formData);
+      // Always register as customer — role assigned by Admin later
+      await register({ ...formData, role: 'customer' });
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      // Show error inline — no redirect
+      const msg = err.response?.data?.message;
+      if (msg?.toLowerCase().includes('email')) {
+        setError('This email is already registered. Try logging in instead.');
+      } else {
+        setError(msg || 'Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const fields = [
-    { name: 'name', label: t('auth.fullName'), type: 'text', placeholder: 'John Smith' },
-    { name: 'email', label: t('auth.email'), type: 'email', placeholder: 'your@email.com' },
-    { name: 'phone', label: t('auth.phone'), type: 'text', placeholder: '+971 50 000 0000', required: false },
+    { name: 'name',  label: t('auth.fullName'), type: 'text',     placeholder: 'John Smith',          required: true },
+    { name: 'email', label: t('auth.email'),    type: 'email',    placeholder: 'your@email.com',       required: true },
+    { name: 'phone', label: t('auth.phone'),    type: 'tel',      placeholder: '+971 50 000 0000',     required: true },
   ];
 
   return (
@@ -48,7 +67,6 @@ const Register = () => {
       padding: '40px 24px',
       position: 'relative',
     }}>
-      {/* Background */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0,
         backgroundImage: `
@@ -56,15 +74,13 @@ const Register = () => {
           radial-gradient(ellipse at 90% 20%, rgba(201,168,76,0.05) 0%, transparent 50%)`,
       }} />
 
-      {/* Language */}
       <div style={{ position: 'fixed', top: '24px', right: '24px', zIndex: 10 }}>
         <LanguageSwitcher />
       </div>
 
-      <div style={{
-        width: '100%', maxWidth: '520px',
-        position: 'relative', zIndex: 1,
-      }} className="fade-up">
+      <div style={{ width: '100%', maxWidth: '520px', position: 'relative', zIndex: 1 }}
+        className="fade-up">
+
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{
@@ -72,21 +88,17 @@ const Register = () => {
             background: 'linear-gradient(135deg, var(--gold), var(--gold-dark))',
             borderRadius: '14px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '26px',
-            margin: '0 auto 16px',
+            fontSize: '26px', margin: '0 auto 16px',
             boxShadow: 'var(--shadow-gold)',
           }}>📅</div>
           <h1 style={{
             fontFamily: 'var(--font-display)',
-            fontSize: '2rem',
-            fontWeight: '400',
+            fontSize: '2rem', fontWeight: '400',
             color: 'var(--text-primary)',
           }}>{t('auth.joinUs')}</h1>
           <p style={{
-            color: 'var(--text-muted)',
-            fontSize: '0.85rem',
-            marginTop: '6px',
-            fontWeight: '300',
+            color: 'var(--text-muted)', fontSize: '0.85rem',
+            marginTop: '6px', fontWeight: '300',
           }}>{t('auth.joinMsg')}</p>
         </div>
 
@@ -98,33 +110,52 @@ const Register = () => {
           padding: '48px 40px',
           boxShadow: 'var(--shadow-lg)',
         }}>
+
+          {/* ── Inline Error Message ── */}
           {error && (
             <div style={{
-              background: '#FFF1F2', border: '1px solid #FECDD3',
+              background: '#FFF1F2',
+              border: '1px solid #FECDD3',
+              borderLeft: '4px solid #ef4444',
               borderRadius: 'var(--radius-sm)',
-              padding: '12px 16px', marginBottom: '24px',
-              fontSize: '0.8rem', color: '#9F1239',
-            }}>{error}</div>
+              padding: '14px 16px',
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+            }}>
+              <span style={{ fontSize: '16px', flexShrink: 0 }}>⚠️</span>
+              <div>
+                <p style={{
+                  fontSize: '0.82rem', color: '#9F1239',
+                  fontWeight: '600', marginBottom: '2px',
+                }}>Registration Failed</p>
+                <p style={{ fontSize: '0.78rem', color: '#BE123C' }}>{error}</p>
+              </div>
+            </div>
           )}
 
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* Text Fields */}
               {fields.map((field) => (
                 <div key={field.name}>
                   <label className="luxury-label">
                     {field.label}
-                    {field.required !== false && (
-                      <span style={{ color: 'var(--gold)', marginInlineStart: '4px' }}>*</span>
-                    )}
+                    <span style={{ color: 'var(--gold)', marginInlineStart: '4px' }}>*</span>
                   </label>
                   <input
                     type={field.type}
                     name={field.name}
                     value={formData[field.name]}
                     onChange={handleChange}
-                    required={field.required !== false}
+                    required={field.required}
                     placeholder={field.placeholder}
                     className="luxury-input"
+                    style={{
+                      borderColor: error && !formData[field.name] ? '#FECDD3' : undefined,
+                    }}
                   />
                 </div>
               ))}
@@ -156,47 +187,55 @@ const Register = () => {
                       color: 'var(--text-muted)',
                     }}>{showPassword ? '🙈' : '👁️'}</button>
                 </div>
+                {/* Password strength hint */}
+                {formData.password.length > 0 && formData.password.length < 6 && (
+                  <p style={{
+                    fontSize: '0.72rem', color: '#ef4444',
+                    marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px',
+                  }}>⚠️ Password is too short — minimum 6 characters</p>
+                )}
+                {formData.password.length >= 6 && (
+                  <p style={{
+                    fontSize: '0.72rem', color: '#22c55e',
+                    marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px',
+                  }}>✓ Password looks good</p>
+                )}
               </div>
 
-              {/* Role */}
-              <div>
-                <label className="luxury-label">{t('auth.role')}</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  {['customer', 'staff'].map((role) => (
-                    <label key={role} style={{
-                      display: 'flex', alignItems: 'center', gap: '10px',
-                      padding: '14px 18px',
-                      border: `1px solid ${formData.role === role ? 'var(--gold)' : 'var(--border)'}`,
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      background: formData.role === role ? 'rgba(201,168,76,0.06)' : 'transparent',
-                      transition: 'all 0.3s ease',
-                    }}>
-                      <input
-                        type="radio"
-                        name="role"
-                        value={role}
-                        checked={formData.role === role}
-                        onChange={handleChange}
-                        style={{ accentColor: 'var(--gold)' }}
-                      />
-                      <span style={{
-                        fontSize: '0.8rem',
-                        fontWeight: '500',
-                        color: formData.role === role ? 'var(--gold-dark)' : 'var(--text-secondary)',
-                        letterSpacing: '0.05em',
-                      }}>
-                        {role === 'customer' ? t('auth.customer') : t('auth.staff')}
-                      </span>
-                    </label>
-                  ))}
-                </div>
+              {/* Info box — no role needed */}
+              <div style={{
+                background: 'rgba(201,168,76,0.05)',
+                border: '1px solid rgba(201,168,76,0.2)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+              }}>
+                <span style={{ fontSize: '14px', flexShrink: 0 }}>ℹ️</span>
+                <p style={{
+                  fontSize: '0.75rem', color: 'var(--text-secondary)',
+                  lineHeight: 1.5,
+                }}>
+                  Your account will be created as a <strong>Client</strong>. If you need staff access, contact the administrator after registering.
+                </p>
               </div>
 
-              <button type="submit" disabled={loading} className="btn-gold"
-                style={{ width: '100%', marginTop: '8px' }}>
-                {loading ? t('auth.creating') : t('auth.register')}
+              <button type="submit" disabled={loading}
+                className="btn-gold" style={{ width: '100%', marginTop: '8px' }}>
+                {loading ? (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <svg style={{ animation: 'spin 1s linear infinite', width: '14px', height: '14px' }}
+                      viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"
+                        strokeDasharray="32" strokeDashoffset="8" />
+                    </svg>
+                    {t('auth.creating')}
+                  </span>
+                ) : `✦ ${t('auth.register')}`}
               </button>
+
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           </form>
 
